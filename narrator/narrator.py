@@ -133,8 +133,11 @@ def get_sample_size(sort_check, df, ss, sample_check):
     - Args:
         - df_corpus= DataFrame of tweet corpus
         - hash_col= String value of the DataFrame column name for hashtags.
+        - single_hash= String of single hashtag to isolate.
+        - hash_list= List of hashtags to isolate.
         - date_col= String value of the DataFrame column name for the dates in xx-xx-xxxx format.
-        - date_counter= Boolean. If True, build sums per day. If False, overall sum.
+        - single_date_counter= Boolean. If True, build sums per day for single hashtag. If False, overall sum.
+        - group_date_counter= Boolean. If True, build sums per day for grouping of hashtags.
         - sorted= Boolean. If True, sort sums per day. If False, maintain temporal order.
         - sort_type= Boolean. If True, descending order. If False, ascending order.
 '''
@@ -147,7 +150,7 @@ def hashtag_summarizer(**kwargs):
     # 2. Count and sort in descending order
     cleaned_hashtags = []
     # Option 2.1 - Count per Hashtag, across entire corpus
-    if kwargs['date_counter'] == False:
+    if kwargs['single_date_counter'] == False or kwargs['group_date_counter'] == False:
         for h in list(clean_hash_data_filtered[kwargs['hash_col']]):
             h = ast.literal_eval(h)
             if type(h) is not float:
@@ -166,8 +169,8 @@ def hashtag_summarizer(**kwargs):
             ss=kwargs['sample_size'],
             sample_check=kwargs['sample_check'])
         return top_x
-    # Option 2.2 - Count hashtags per Day, across entire corpus
-    elif kwargs['date_counter'] == True:
+    # Option 2.2 - Count a single hashtag per Day, across entire corpus
+    elif kwargs['single_date_counter'] == True:
         # Isolate columns of interest: Dates (xx-xx-xxxx) and 
         df_hash_data = clean_hash_data_filtered[[kwargs['date_col'], kwargs['hash_col']]]
         hashtags_and_dates = []
@@ -177,9 +180,42 @@ def hashtag_summarizer(**kwargs):
                 ht = [n.strip() for n in ht]
                 if len(ht) > 1:
                     for i in ht:
-                        hashtags_and_dates.append( (i, h[0]) ) #append hashtag and date
+                        # Check if in hash_list
+                        if i == kwargs['single_hash']:
+                            # Append hashtag and date
+                            hashtags_and_dates.append( (i, h[0]) )
                 elif len(ht) == 1:
-                    hashtags_and_dates.append( (ht[0], h[0]) ) #append hashtag and date
+                    # Append hashtag and date
+                    hashtags_and_dates.append( (ht[0], h[0]) )
+        
+        hashtag_date_totals = list(Counter(hashtags_and_dates).items())
+
+        # Get sample
+        top_date_x = get_sample_size(
+            sort_check=kwargs['sort_check'],
+            df=hashtag_date_totals,
+            ss=kwargs['sample_size'],
+            sample_check=kwargs['sample_check'])
+        return top_date_x
+    # Option 2.3 - Count grouping of hashtags per Day, across entire corpus
+    elif kwargs['group_date_counter'] == True:
+        # Isolate columns of interest: Dates (xx-xx-xxxx) and 
+        df_hash_data = clean_hash_data_filtered[[kwargs['date_col'], kwargs['hash_col']]]
+        df_selected_hashtags = df_hash_data[df_hash_data[kwargs['hash_col']].isin(kwargs['hash_list'])]
+        hashtags_and_dates = []
+        for h in df_selected_hashtags.values.tolist():
+            ht = ast.literal_eval(h[1])
+            if type(ht) is not float:
+                ht = [n.strip() for n in ht]
+                if len(ht) > 1:
+                    for i in ht:
+                        # Check if in hash_list
+                        if i in kwargs['hash_list']:
+                            # Append hashtag and date
+                            hashtags_and_dates.append( (i, h[0]) )
+                elif len(ht) == 1:
+                    # Append hashtag and date
+                    hashtags_and_dates.append( (ht[0], h[0]) )
         
         hashtag_date_totals = list(Counter(hashtags_and_dates).items())
 

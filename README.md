@@ -59,7 +59,8 @@ It functions only with Python 3.x and is not backwards-compatible (although one 
         - df_corpus= DataFrame of tweet corpus
         - hash_col= String value of the DataFrame column name for hashtags.
         - date_col= String value of the DataFrame column name for the dates in xx-xx-xxxx format.
-        - date_counter= Boolean. If True, build sums per day. If False, overall sum.
+        - single_date_counter= Boolean. If True, build sums per day for single hashtag. If False, overall sum.
+        - group_date_counter= Boolean. If True, build sums per day for grouping of hashtags.
         - sorted= Boolean. If True, sort sums per day. If False, maintain temporal order.
         - sort_type= Boolean. If True, descending order. If False, ascending order.
 * ```get_sample_size```: Helper function for summarizer functions. If sample=True, then sample sent here and returned to the summarizer for output.
