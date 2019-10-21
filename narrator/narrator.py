@@ -112,6 +112,7 @@ def get_sample_size(sort_check, df, ss, sample_check):
     if sort_check == True:
         sorted_df = sorted(df, key=lambda x: x[1], reverse=True)
         print('Top 10:\n\n', sorted_df[:10])
+        # Check if delimited sample size
         if sample_check == True:
             top_dates = sorted_df[:ss]
             return top_dates
@@ -119,6 +120,7 @@ def get_sample_size(sort_check, df, ss, sample_check):
             return sorted_df
     elif sort_check == False:
         print('First 10:\n\n', df[:10])
+        # Check if delimited sample size
         if sample_check == True:
             first_dates = df[:ss]
             return first_dates
@@ -181,18 +183,13 @@ def hashtag_summarizer(**kwargs):
         
         hashtag_date_totals = list(Counter(hashtags_and_dates).items())
 
-        # Check if to be sorted or not
-        if kwargs['sorted'] == True:
-            sorted_hashtag_date_totals = sorted(hashtag_date_totals, key=lambda x: x[1], reverse=True)
-            print('Top 10:\n\n', sorted_hashtag_date_totals[:10])
-
-            if kwargs['sample'] == True:
-                top_date_x = get_sample_size(sorted_hashtag_date_totals, kwargs['sample_size'])
-                return top_date_x
-        elif kwargs['sorted'] == False:
-            print('First 10:\n\n', hashtag_date_totals[:10])
-            top_date_x = hashtag_date_totals[:kwargs['sample_size']]
-            return top_date_x
+        # Get sample
+        top_date_x = get_sample_size(
+            sort_check=kwargs['sort_check'],
+            df=hashtag_date_totals,
+            ss=kwargs['sample_size'],
+            sample_check=kwargs['sample_check'])
+        return top_date_x
 
 ##################################################################
 
