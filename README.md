@@ -40,7 +40,11 @@ It functions only with Python 3.x and is not backwards-compatible (although one 
 ```narrator``` contains the following general functions:
 
 * ```initializeTO```: Initializes a topperObject().
-* ```period_maker```: Helper function for period_dates_writer.
+* ```date_range_writer```: Takes beginning date and end date to write a range of those dates per Day as a List
+    - Args:
+        - bd= String. Beginning date in YYYY-MM-DD format
+        - ed= String. Ending date in YYYY-MM-DD format
+    - Returns List of arrow date objects for whatever needs.
 * ```period_writer```:  Accepts list of lists of period date information and returns a Dict of per Period dates for temporal analyses.
     - Args:
         - periodObj: Optional first argument periodObject, Default is None
@@ -63,6 +67,7 @@ It functions only with Python 3.x and is not backwards-compatible (although one 
         - group_date_counter= Boolean. If True, build sums per day for grouping of hashtags.
         - sorted= Boolean. If True, sort sums per day. If False, maintain temporal order.
         - sort_type= Boolean. If True, descending order. If False, ascending order.
+    - Return: Depending on option, a sample as a List of Tuples or Dict of grouped samples
 * ```get_sample_size```: Helper function for summarizer functions. If sample=True, then sample sent here and returned to the summarizer for output.
     - Args:
         - sort_check= Boolean. If True, sort the corpus. If False, leave in temporal order.
@@ -70,7 +75,29 @@ It functions only with Python 3.x and is not backwards-compatible (although one 
         - ss= Integer of sample size to output.
         - sample_check= Boolean. If True, use ss value. If False, use full corpus.
     - Returns DataFrame to summarizer function.
-* More to come
+* ```grouper```: Takes default values in 'skeleton' Dict and hydrates them with sample List of Tuples
+    - Args:
+        - group_type= String. Current options include 'day' or 'period'
+        - listed_tuples= List of Tuples from get_sample_size(). 
+            - Example structure is the following: ```[(('keyword', '01-27-2019'), 100), (...), ...]```
+        - skeleton= Dict. Fully hydrated skeleton dict, wherein grouper() updates its default 0 Int values.
+    - Returns Dict of updated values per keyword
+* ```skeletor```: Takes desired date range and list of keys to create a skeleton Dict before hydrating it with the sample values. Overall, this provides default 0 Int values for every keyword in the sample.
+    - Args:
+        - aggregate_level= String. Current options include:
+            - 'day': per Day
+            - 'period_day': Days per Period
+            - 'period': per Period
+        - date_range= 
+            - If 'day' aggregate level, a List of per Day dates ```['2018-01-01', '2018-01-02', ...]```
+            - If 'period' aggregate level, a Dict of periods with respective date Lists: ```{{'1': ['2018-01-01', '2018-01-02', ...]}}```
+        - keys= List of keys for hydrating the Dict
+    - Returns full Dict 'skeleton' with default 0 Integer values for the grouper() function
+* ```whichPeriod```: Helper function for grouper(). Isolates what period a date is in for use.
+    - Args: 
+        - period_dates= Dict of Lists per period
+        - date= String. Date to lookup.
+    - Returns String of period to grouper().
 
 ## Plotter Functions
 
