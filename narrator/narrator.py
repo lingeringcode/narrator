@@ -435,6 +435,8 @@ def hashtag_summarizer(**kwargs):
 ## PLOTTER FUNCTIONS
 
 ##################################################################
+# TODO: develop option-based temporal plotter for groupings
+
 '''
     bar_plotter: Plot the desired column sums as a bar chart
     -- Args:
