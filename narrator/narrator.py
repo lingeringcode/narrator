@@ -25,6 +25,7 @@ import operator
 import re
 import emoji
 import string
+import math
 
 '''
     See README.md for an overview and comments for extended explanation.
@@ -102,7 +103,7 @@ def period_dates_writer(topperObject=None, **kwargs):
 
 ##################################################################
 '''
-    Takes desired date range and list of keys to create a skeleton Dict before hydrating it with the sample values. Overall, this provides default 0 Int values for every keyword in the sample.
+    skeletor: Takes desired date range and list of keys to create a skeleton Dict before hydrating it with the sample values. Overall, this provides default 0 Int values for every keyword in the sample.
     - Args:
         - aggregate_level= String. Current options include:
             - 'day': per Day
@@ -231,13 +232,133 @@ def grouper(**kwargs):
                     kwargs['skeleton'][p_check][g[0][0]] = g[1] + kwargs['skeleton'][p_check][g[0][0]]
                     
     return kwargs['skeleton']
+
+'''
+    grouped_dict_to_df:
+    - Args:
+        - sum_option= String. Options for grouping into a Dataframe.
+            - group_hash_temporal= Multiple groups of hashtags
+        - output_type= Sring. oPtions for DF outputs
+            - d3js= Good for small multiples in D3.js 
+            - python= Good for small multiples in matplot
+        - time_agg_type= String. Options for type of temporal grouping.
+            - period= Grouped by periods
+        - group_dict= Hydrated Dict to convert to a DataFrame for visualization or output
+    - Returns DataFrame for use with a plotter function or output as CSV
+'''
+def grouped_dict_to_df(**kwargs):
+    if kwargs['sum_option'] == 'group_hash_temporal' and kwargs['time_agg_type'] == 'period':
         
+        if kwargs['output_type'] == 'd3js':
+            ph = []
+            for p in kwargs['group_dict']:
+                for ht in kwargs['group_dict'][p]:
+                    ph.append([int(p), ht, kwargs['group_dict'][p][ht]])
+
+            columns = ['period','hashtag','count']
+            df_return = pd.DataFrame(ph, columns=columns)
+            
+            return df_return
+        elif kwargs['output_type'] == 'python':
+            period_col_values = []
+            data = {'columns': {}}
+            for p in kwargs['group_dict']:
+                for ht in kwargs['group_dict'][p]:
+                    # Append hashtag values
+                    if ht not in data['columns']:
+                        data['columns'].update({ht: [ kwargs['group_dict'][p][ht] ]})
+                    elif ht in data['columns']:
+                        data['columns'][ht].append(kwargs['group_dict'][p][ht])
+                    # Append period
+                    if int(p) not in period_col_values:
+                        period_col_values.append(int(p))
+
+            df_periods = pd.DataFrame({'period': period_col_values})
+            df_hts = pd.DataFrame(data['columns'])
+            df_return = df_periods.join(df_hts)
+            
+            return df_return
+
+'''
+    find_term: Helper function for accumulator(). Searches for hashtag in tweet.
+        If there, return True. If not, return False.
+        - Args:
+            - search= String. Term to search for.
+            - text= String. Text to search.
+        - Returns Boolean
+'''
+def find_term(search, text):
+    result = re.findall('\\b'+search+'\\b', text, flags=re.IGNORECASE)
+    if len(result) > 0:
+        print('Term:', search, '\n\nResult;', result)
+        return True
+    else:
+        return False
+
+'''
+    accumulator: Helper function for summarizer functions. Accumulates by hashtag lists and keyword lists.
+    - Args:
+        - checker= String. Options for accumulation:
+            - hashtags: Hashtag search.
+            - keywords: Keyword search.
+        - df_list= List. DataFrame passed as a list for traversing
+        - check_list= List. List of terms to accrue and append
+            - If hashtags, converted to List of hashtags
+            - If keywords, List of dicts, where each key is its accompanying hashtag.
+    - Returns a hydrated list of Tuples with hashtags and accompanying date.
+'''
+def accumulator(checker, df_list, check_list):
+    if checker == 'hashtags':
+        print('Started accumulating tweets with hashtags.')
+        hashes_and_dates = []
+        for h in df_list:
+            ht = ast.literal_eval(h[1])
+            if type(ht) is not float:
+                ht = [n.strip() for n in ht]
+                if len(ht) > 1:
+                    for i in ht:
+                        # Check if in hash_list
+                        if i in check_list:
+                            # Append hashtag and date
+                            hashes_and_dates.append( (i, h[0], int(float(h[2]))) )
+                elif len(ht) == 1:
+                    if ht[0] in check_list:
+                        # Append hashtag and date
+                        hashes_and_dates.append( (ht[0], h[0], int(float(h[2]))) )
+        print('Accumulating tweets with hashtags complete.')
+        return hashes_and_dates
+    elif checker == 'keywords':
+        print('Started accumulating tweets with keywords.')
+        keywords_and_dates = []
+        # Traverse list of tweets, check for keywords
+        for t in df_list:
+            for ht in check_list:
+                for kw in ht:
+                    for k in ht[kw]:
+                        # k = keyword in each hashtag's list
+                        # Search for it in a tweet
+                        check_keyword = k in str(t[2])
+                        # Filter out if hashtag_list hashtag is used
+                        if check_keyword == True:
+                            check_ht = find_term( kw, str(t[2]) )
+                            # If not found as hashtag_list, append it
+                            if check_ht == False:
+                                keywords_and_dates.append( (kw, t[0], int(float(t[3])), k) )
+        print('Accumulating tweets with keywords complete.')
+        return keywords_and_dates
+
 '''
     hashtag_summarizer: Counts hashtag use and optionally as temporally
     distributed.
     - Args:
+        - search_option: String. Either 'hashtags' or' tweets_and_hashtags'. The second 
+            option searches for hashtags in the hashtag column and keywords in 
+            the tweet column. For example, you search for someone's name in the 
+            corpus that isn't always represented as a hashtag.
+        - keyword_list= List. A list of keywords of which you search within the tweet column.
         - df_corpus= DataFrame of tweet corpus
         - hash_col= String value of the DataFrame column name for hashtags.
+        - tweet_col= String value of the DataFrame column name for tweets.
         - sum_option= String. Current options for sampling include the following:
             - 'sum_all_hash': Sum of all hashtags across entire corpus
             - 'sum_group_hash': Sum of a group of hashtags (List) across entire corpus
@@ -253,6 +374,9 @@ def grouper(**kwargs):
         - sort_check= Boolean. If True, sort sums per day.
         - sort_date_check= Boolean. If True, sort by dates.
         - sort_type= Boolean. If True, descending order. If False, ascending order.
+        - output_type= String. OPtions for particular Dataframe output
+            - d3js= DF in a format conduive for small multiples chart in D3.js
+            - python= DF in a format conduive for small multiples chart in python's matplot
     - Return: Depending on option, a sample as a List of Tuples or Dict of grouped samples
 '''
 def hashtag_summarizer(**kwargs):
@@ -261,11 +385,14 @@ def hashtag_summarizer(**kwargs):
     clean_hash_data = kwargs['df_corpus'][(kwargs['df_corpus'][kwargs['hash_col']].isnull() == False)]
     clean_hash_data_filtered = clean_hash_data[clean_hash_data[kwargs['hash_col']].str.contains('#')]
     clean_hash_data_filtered = clean_hash_data.reset_index()
+    
     print('Hashtag data cleaned, now writing samples.')
-    # 2. Count and sort in descending order
+    # 2. Count and sort
+    
     cleaned_hashtags = []
     # Option 2.1 - Count per Hashtag, across entire corpus
     if kwargs['sum_option'] == 'sum_all_hash':
+        print('Hydrating by desired', kwargs['sum_option'])
         for h in list(clean_hash_data_filtered[kwargs['hash_col']]):
             h = ast.literal_eval(h)
             if type(h) is not float:
@@ -279,7 +406,7 @@ def hashtag_summarizer(**kwargs):
         # Count'em up
         hashtag_date_totals = list(Counter(cleaned_hashtags).items())
         
-        # Get sample
+        print('Writing up the sample')
         top_x = get_sample_size(
             sort_check=kwargs['sort_check'],
             sort_date_check=kwargs['sort_date_check'],
@@ -291,6 +418,7 @@ def hashtag_summarizer(**kwargs):
         return top_x
     # Option 2.2 - Count group of hashtags across entire corpus
     elif kwargs['sum_option'] == 'sum_group_hash':
+        print('Hydrating by desired', kwargs['sum_option'])
         for h in list(clean_hash_data_filtered[kwargs['hash_col']]):
             h = ast.literal_eval(h)
             if type(h) is not float:
@@ -305,7 +433,7 @@ def hashtag_summarizer(**kwargs):
         # Count'em up
         hashtag_date_totals = list(Counter(cleaned_hashtags).items())
         
-        # Get sample
+        print('Writing up the sample')
         top_x = get_sample_size(
             sort_check=kwargs['sort_check'],
             sort_date_check=kwargs['sort_date_check'],
@@ -317,6 +445,7 @@ def hashtag_summarizer(**kwargs):
         return top_x
     # Option 2.3 - Count single hashtag across entire corpus
     elif kwargs['sum_option'] == 'sum_single_hash':
+        print('Hydrating by desired', kwargs['sum_option'])
         for h in list(clean_hash_data_filtered[kwargs['hash_col']]):
             h = ast.literal_eval(h)
             if type(h) is not float:
@@ -330,7 +459,7 @@ def hashtag_summarizer(**kwargs):
         
         hashtag_date_totals = list(Counter(cleaned_hashtags).items())
         
-        # Get sample
+        print('Writing up the sample')
         top_x = get_sample_size(
             sort_check=kwargs['sort_check'],
             sort_date_check=kwargs['sort_date_check'],
@@ -343,8 +472,8 @@ def hashtag_summarizer(**kwargs):
     # Option 2.4 - Count a single hashtag temporally across entire corpus
     elif kwargs['sum_option'] == 'single_hash_temporal':
         # Isolate columns of interest: Dates (xx-xx-xxxx) and 
-        df_hash_data = clean_hash_data_filtered[[kwargs['date_col'], kwargs['hash_col']]]
-        print('Writing single_date_counter sample.')
+        df_hash_data = clean_hash_data_filtered[[kwargs['date_col'], kwargs['hash_col'], [kwargs['id']]]]
+        print('Hydrating by desired', kwargs['sum_option'])
         hashtags_and_dates = []
         for h in df_hash_data.values.tolist():
             ht = ast.literal_eval(h[1])
@@ -362,7 +491,7 @@ def hashtag_summarizer(**kwargs):
         
         hashtag_date_totals = list(Counter(hashtags_and_dates).items())
 
-        # Get sample
+        print('Writing up the sample')
         top_date_x = get_sample_size(
             sort_check=kwargs['sort_check'],
             sort_date_check=kwargs['sort_date_check'],
@@ -381,28 +510,44 @@ def hashtag_summarizer(**kwargs):
         return temporal_top_date_x
     # Option 2.5 - Count grouping of hashtags temporally across entire corpus
     elif kwargs['sum_option'] == 'group_hash_temporal':
-        print('Hydrating by desired grouped dates ...')
-        # Isolate columns of interest
-        df_hash_data = clean_hash_data_filtered[[kwargs['date_col'], kwargs['hash_col']]]
+        print('Hydrating by desired', kwargs['sum_option'])
+        merged_hashtags_and_dates = []
         hashtags_and_dates = []
-        for h in df_hash_data.values.tolist():
-            ht = ast.literal_eval(h[1])
-            if type(ht) is not float:
-                ht = [n.strip() for n in ht]
-                if len(ht) > 1:
-                    for i in ht:
-                        # Check if in hash_list
-                        if i in kwargs['hash_list']:
+        # Write Lists with desired keyword and/or hashtag info
+        if kwargs['search_option'] == 'hashtags':
+            # If hashtags a concern ONLY
+            df_hash_data = clean_hash_data_filtered[[kwargs['date_col'], kwargs['hash_col']]]
+            for h in df_hash_data.values.tolist():
+                ht = ast.literal_eval(h[1])
+                if type(ht) is not float:
+                    ht = [n.strip() for n in ht]
+                    if len(ht) > 1:
+                        for i in ht:
+                            # Check if in hash_list
+                            if i in kwargs['hash_list']:
+                                # Append hashtag and date
+                                hashtags_and_dates.append( (i, h[0]) )
+                    elif len(ht) == 1:
+                        if ht[0] in kwargs['hash_list']:
                             # Append hashtag and date
-                            hashtags_and_dates.append( (i, h[0]) )
-                elif len(ht) == 1:
-                    if ht[0] in kwargs['hash_list']:
-                        # Append hashtag and date
-                        hashtags_and_dates.append( (ht[0], h[0]) )
+                            hashtags_and_dates.append( (ht[0], h[0]) )
+        elif kwargs['search_option'] == 'tweets_and_hashtags':
+            # 1. Search and list hashtags
+            df_hash_data = clean_hash_data_filtered[[kwargs['date_col'], kwargs['hash_col'], kwargs['id_col']]]
+            hashtags_dates_tweetid = accumulator('hashtags', df_hash_data.values.tolist(), kwargs['hash_list'])
+            
+            # 2. Search and list keywords; Also filters out tweets already accounted by the hashtag_list
+            df_kw_data = kwargs['df_corpus'][ [kwargs['date_col'], kwargs['hash_col'], kwargs['tweet_col'], kwargs['id_col'] ]]
+            kwhts_dates_tweetid = accumulator('keywords', df_kw_data.values.tolist(), kwargs['keyword_list'])
+            
+            # 3. Merge Lists and filter out unecessary items
+            merged_list = hashtags_dates_tweetid + kwhts_dates_tweetid
+            for m in merged_list:
+                merged_hashtags_and_dates.append((m[0], m[1]))
         
-        hashtag_date_totals = list(Counter(hashtags_and_dates).items())
-
-        # Get sample
+        hashtag_date_totals = list(Counter(merged_hashtags_and_dates).items())
+        
+        print('Writing up the sample')
         top_date_x = get_sample_size(
             sort_check=kwargs['sort_check'],
             sort_date_check=kwargs['sort_date_check'],
@@ -412,7 +557,9 @@ def hashtag_summarizer(**kwargs):
             sample_check=kwargs['sample_check']
         )
 
-        # Group sample per Day or per Period
+        print('Grouping the sample based on the', kwargs['time_agg_type'], 'option.')
+        
+        grouped_top_date_x = {}
         if kwargs['time_agg_type'] == 'period':
             grouped_top_date_x = grouper(
                 listed_tuples=top_date_x,
@@ -426,16 +573,24 @@ def hashtag_summarizer(**kwargs):
                 group_type=kwargs['time_agg_type'],
                 skeleton=kwargs['skeleton']
             )
+            
+        print('\n\nConverting data to a DataFrame.')
+        
+        df_grouped_top_date_x = grouped_dict_to_df(
+            sum_option=kwargs['sum_option'],
+            time_agg_type=kwargs['time_agg_type'],
+            group_dict=grouped_top_date_x,
+            output_type=kwargs['output_type']
+        )
 
         print('\n\nSample hydration complete!')
-        return grouped_top_date_x
+        return df_grouped_top_date_x
 
 ##################################################################
 
 ## PLOTTER FUNCTIONS
 
 ##################################################################
-# TODO: develop option-based temporal plotter for groupings
 
 '''
     bar_plotter: Plot the desired column sums as a bar chart
@@ -542,3 +697,121 @@ def temporal_bar_plotter(**kwargs):
     plt.savefig(join(kwargs['path'], kwargs['output']))
     print('File ', kwargs['output'], ' saved to ', kwargs['path'])
     plt.show()
+
+'''
+    multiline_plotter: Plots and saves a small-multiples line chart from a returned DataFrame from a summarizer function that used the 'python' option
+    - Modified src: https://python-graph-gallery.com/125-small-multiples-for-line-chart/
+    - Args:
+        - style= String. See matplot docs for options available, e.g. 'seaborn-darkgrid' 
+        - pallette= String. See matplot docs for options available, e.g. 'Set1'
+        - graph_option= String. Current options for sampling include the following:
+            - 'single_hash_per_day': Sum of single hashtag per Day in provided range
+            - 'group_hash_per_day': Sum of group of hashtags per Day in provided range
+            - 'single_hash_per_period': Sum of single hashtag per Period
+            - 'group_hash_per_period': Sum of group of hashtags per Period
+        - df= DataFrame of data set to be visualized
+        - x_col= DataFrame column for x-axis
+        - multi_x= Integer for number of graphs along x/rows
+        - multi_y= Integer for number of graphs along y/columns
+            - NOTE: Only supports 3x3 right now.
+        - linewidth= Float. Line width level.
+        - alpha= Float (0-1). Opacity level of lines
+        - chart_title= String. Title for the overall chart
+        - x_title= String. Label for x axis
+        - y_title= String. Label for y axis
+        - path= String. Path to save figure
+        - output= String. Filename for figure.
+    - Returns nothing, but plots a 'small multiples' series of charts
+'''
+def multiline_plotter(**kwargs):
+    if kwargs['graph_option'] == 'group_hash_per_period':
+        # Initialize the use of a stylesheet
+        # See docs for options, e.g., 'dark_background'
+        plt.style.use(kwargs['style'])
+
+        # Create a color palette
+        # See docs for options, e.g., 'Set1' or 'Paired'
+        palette = plt.get_cmap(kwargs['palette'])
+
+        # Create a figure and a grid of subplots
+        fig, axs = plt.subplots(nrows=kwargs['multi_x'], ncols=kwargs['multi_y'])
+
+        # counter will store the feature index 
+        # to use when highlighting a particular 
+        # variable in each subplot
+        counter = 0
+
+        # Traverse each individual subplot within the 3x3 grid
+        # Note: This code subsets each subplot via axs[row, col]
+        for row in range(axs.shape[0]):
+            for col in range(axs.shape[1]):
+                # Plot every feature in each subplot as a white line
+                for feature in kwargs['df'].drop(kwargs['x_col'], axis=1).columns:
+                    axs[row, col].plot(kwargs['df'][kwargs['x_col']],
+                                   kwargs['df'][feature],
+                                   marker="",
+                                   color="white", 
+                                   linewidth=0.6,
+                                   alpha=0.3)
+                # For each subplot, plot only one non-"period" feature 
+                # via counter and in color
+                # Note: counter is input directly inside of palette()
+                axs[row, col].plot(kwargs['df'][kwargs['x_col']],
+                                   kwargs['df'].drop(kwargs['x_col'], axis=1).iloc[:, counter],
+                                   marker="",
+                                   color=palette(counter), 
+                                   linewidth=2.4,
+                                   alpha=0.9)
+                
+                # Set xlim and ylim for each subplot
+                # Define ranges based on data set values
+                x_max = math.ceil(max(kwargs['df'].iloc[:, :1].copy().max().values.tolist()))
+                x_min = math.floor(min(kwargs['df'].iloc[:, :1].copy().min().values.tolist()))
+                y_max = math.ceil(max(kwargs['df'].iloc[:, 1:-1].copy().max().values.tolist()))
+                y_min = math.floor(min(kwargs['df'].iloc[:, 1:-1].copy().min().values.tolist()))
+                axs[row, col].set_xlim(x_min,x_max)
+                axs[row, col].set_ylim(y_min,y_max)
+
+                # Remove x-axis tick marks from the first two rows of subplots
+                # TODO: Revise to be modular, based on grid definition besides 3x3
+                if row in [0, 1]:
+                    axs[row, col].tick_params(labelbottom=False)
+                # Remove the y-axis tick marks from the second and third 
+                # columns of subplots
+                if col in [1, 2]:
+                    axs[row, col].tick_params(labelleft=False)          
+
+                # Assign each subplot a title based on the one non-"period" 
+                # feature that was highlighted in color
+                axs[row, col].set_title(kwargs['df'].drop(kwargs['x_col'], axis=1).iloc[:, counter].name, 
+                                        loc="left", 
+                                        fontsize=12, 
+                                        fontweight=0, 
+                                        color=palette(counter))
+
+                # Subplot complete, so increment counter
+                # so the next column variable is highlighted
+                counter += 1
+
+        # Assign overall title
+        fig.suptitle(kwargs['chart_title'], 
+                     fontsize=13, 
+                     fontweight=0,
+                     color="white", 
+                     style="italic", 
+                     y=1.02)
+
+        # Label axes
+        fig.text(0.5, 0.01, kwargs['x_title'], ha="center", va="center")
+        fig.text(0.01, 0.5, kwargs['y_title'], ha="center", va="center", rotation='vertical')
+
+        # Unsquish layout
+        fig.tight_layout()
+
+        # Export figure as PNG file
+        fig.savefig(
+            join(kwargs['path'], kwargs['output']),
+            dpi=200,
+            bbox_inches="tight")
+        print('File ', kwargs['output'], ' saved to ', kwargs['path'])
+        plt.show()

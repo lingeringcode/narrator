@@ -58,19 +58,41 @@ It functions only with Python 3.x and is not backwards-compatible (although one 
 
 ## Summarizer Functions
 
-* ```hashtag_summarizer```: Counts hashtag use: optionally as temporally distributed or as totals per hashtag. You can also specify sorting preferences.
+* ```hashtag_summarizer```: Counts hashtag use and optionally as temporally
+    distributed.
     - Args:
+        - search_option: String. Either 'hashtags' or' tweets_and_hashtags'. The second 
+            option searches for hashtags in the hashtag column and keywords in 
+            the tweet column. For example, you search for someone's name in the 
+            corpus that isn't always represented as a hashtag.
+        - keyword_list= List. A list of keywords of which you search within the tweet column.
         - df_corpus= DataFrame of tweet corpus
         - hash_col= String value of the DataFrame column name for hashtags.
+        - tweet_col= String value of the DataFrame column name for tweets.
+        - sum_option= String. Current options for sampling include the following:
+            - 'sum_all_hash': Sum of all hashtags across entire corpus
+            - 'sum_group_hash': Sum of a group of hashtags (List) across entire corpus
+            - 'sum_single_hash': Sum of a single hashtag (String) across entire corpus
+            - 'single_hash_per_day': Sum of single hashtag per Day in provided range
+            - 'group_hash_per_day': Sum of group of hashtags per Day in provided range
+        - single_hash= String of single hashtag to isolate.
+        - hash_list= List of hashtags to isolate.
+        - time_agg_type= If sum by group temporally, define its temporal aggregation:
+            - 'day': Aggregate time per Day
+            - 'period': Aggregate time per period
         - date_col= String value of the DataFrame column name for the dates in xx-xx-xxxx format.
-        - single_date_counter= Boolean. If True, build sums per day for single hashtag. If False, overall sum.
-        - group_date_counter= Boolean. If True, build sums per day for grouping of hashtags.
-        - sorted= Boolean. If True, sort sums per day. If False, maintain temporal order.
+        - sort_check= Boolean. If True, sort sums per day.
+        - sort_date_check= Boolean. If True, sort by dates.
         - sort_type= Boolean. If True, descending order. If False, ascending order.
+        - output_type= String. OPtions for particular Dataframe output
+            - d3js= DF in a format conduive for small multiples chart in D3.js
+            - python= DF in a format conduive for small multiples chart in python's matplot
     - Return: Depending on option, a sample as a List of Tuples or Dict of grouped samples
-* ```get_sample_size```: Helper function for summarizer functions. If sample=True, then sample sent here and returned to the summarizer for output.
+* ```get_sample_size```: Helper function for summarizer functions. If sample=True,
+    then sample sent here and returned to the summarizer for output.
     - Args:
-        - sort_check= Boolean. If True, sort the corpus. If False, leave in temporal order.
+        - sort_check= Boolean. If True, sort the corpus.
+        - sort_date_check= Boolean. If True, sort corpus based on dates.
         - df= DataFrame of corpus.
         - ss= Integer of sample size to output.
         - sample_check= Boolean. If True, use ss value. If False, use full corpus.
@@ -98,6 +120,32 @@ It functions only with Python 3.x and is not backwards-compatible (although one 
         - period_dates= Dict of Lists per period
         - date= String. Date to lookup.
     - Returns String of period to grouper().
+* ```find_term```: Helper function for accumulator(). Searches for hashtag in tweet. If there, return True. If not, return False.
+        - Args:
+            - search= String. Term to search for.
+            - text= String. Text to search.
+        - Returns Boolean
+* ```grouped_dict_to_df```: Takes grouped Dict and outputs a DataFrame.
+    - Args:
+        - sum_option= String. Options for grouping into a Dataframe.
+            - group_hash_temporal= Multiple groups of hashtags
+        - output_type= Sring. oPtions for DF outputs
+            - d3js= Good for small multiples in D3.js 
+            - python= Good for small multiples in matplot
+        - time_agg_type= String. Options for type of temporal grouping.
+            - period= Grouped by periods
+        - group_dict= Hydrated Dict to convert to a DataFrame for visualization or output
+    - Returns DataFrame for use with a plotter function or output as CSV
+* ```accumulator```: Helper function for summarizer functions. Accumulates by hashtag lists and keyword lists.
+    - Args:
+        - checker= String. Options for accumulation:
+            - hashtags: Hashtag search.
+            - keywords: Keyword search.
+        - df_list= List. DataFrame passed as a list for traversing
+        - check_list= List. List of terms to accrue and append
+            - If hashtags, converted to List of hashtags
+            - If keywords, List of dicts, where each key is its accompanying hashtag.
+    - Returns a hydrated list of Tuples with hashtags and accompanying date.
 
 ## Plotter Functions
 
@@ -108,7 +156,28 @@ It functions only with Python 3.x and is not backwards-compatible (although one 
         - path = String of desired path to directory,
         - output = String value of desired file name (.png)
     - Returns: Nothing, but outputs a matplot figure in your Jupyter Notebook and .png file.
-* More to come
+* ```multiline_plotter```: Plots and saves a small-multiples line chart from a returned DataFrame from a summarizer function that used the 
+    - Args:
+        - style= String. See matplot docs for options available, e.g. 'seaborn-darkgrid' 
+        - pallette= String. See matplot docs for options available, e.g. 'Set1'
+        - graph_option= String. Current options for sampling include the following:
+            - 'single_hash_per_day': Sum of single hashtag per Day in provided range
+            - 'group_hash_per_day': Sum of group of hashtags per Day in provided range
+            - 'single_hash_per_period': Sum of single hashtag per Period
+            - 'group_hash_per_period': Sum of group of hashtags per Period
+        - df= DataFrame of data set to be visualized
+        - x_col= DataFrame column for x-axis
+        - multi_x= Integer for number of graphs along x/rows
+        - multi_y= Integer for number of graphs along y/columns
+            - NOTE: Only supports 3x3 right now.
+        - linewidth= Float. Line width level.
+        - alpha= Float (0-1). Opacity level of lines
+        - chart_title= String. Title for the overall chart
+        - x_title= String. Label for x axis
+        - y_title= String. Label for y axis
+        - path= String. Path to save figure
+        - output= String. Filename for figure.
+    - Returns nothing, but plots a 'small multiples' series of charts
 
 ## Distribution update terminal commands
 

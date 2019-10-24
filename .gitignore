@@ -12,6 +12,8 @@ Thumbs.db
 .#*
 .coverage
 .pytest_cache
+.vscode
+.vs_code/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
