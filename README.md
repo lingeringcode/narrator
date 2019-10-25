@@ -204,7 +204,9 @@ period_dates['1'][:5]
 ['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04', '2018-01-05']
 ```
 
-### '''hashtag_summarizer''': Multiple Hashtag search and grouped output in descending order
+### Use the ```hashtag_summarizer``` to generate multiple types of summary outputs
+
+The below examples takes a group of hashtags, searches for them based on the period dates, then outputsthese groupings in descending order. In this case, it can also use a keyword list and hashtag list as 2 forms of input to inform the search across the corpus.
 
 ```python
 liberal_keyword_list = [ 
