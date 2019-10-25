@@ -179,6 +179,107 @@ It functions only with Python 3.x and is not backwards-compatible (although one 
         - output= String. Filename for figure.
     - Returns nothing, but plots a 'small multiples' series of charts
 
+## Example Uses
+
+### Create a Dictionary of period dates
+
+```python
+ranges = [
+    ('1', ['2018-01-01', '2018-03-30']),
+    ('2', ['2018-04-01', '2018-06-12']),
+    ('3', ['2018-06-13', '2018-07-28']),
+    ('4', ['2018-07-29', '2018-10-17']),
+    ('5', ['2018-10-18', '2018-11-24']),
+    ('6', ['2018-11-25', '2018-12-10']),
+    ('7', ['2018-12-11', '2018-12-19']),
+    ('8', ['2018-12-20', '2018-12-25']),
+    ('9', ['2018-12-26', '2019-02-13']),
+    ('10', ['2019-02-14', '2019-02-28'])
+]
+
+period_dates = narrator.period_dates_writer(ranges=ranges)
+period_dates['1'][:5]
+
+## Output ##
+['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04', '2018-01-05']
+```
+
+### '''hashtag_summarizer''': Multiple Hashtag search and grouped output in descending order
+
+```python
+liberal_keyword_list = [ 
+    {
+        '#felipegomez': ['felipe alonzo-gomez', 'felipe gomez']
+    },
+    {
+        '#maquin': ['jakelin caal', 'maquín', 'maquin' ]
+    }
+]
+liberal_hashtag_list = [
+    '#familyseparation', '#familiesbelongtogether',
+    '#felipegomez', '#keepfamiliestogether',
+    '#maquin', '#noborderwall', '#shutdownstories',
+    '#trumpshutdown', '#wherearethechildren'
+]
+
+arrow_date_range = narrator.date_range_writer('2018-01-01', '2019-02-28')
+range_list = []
+for d in arrow_date_range:
+    # Append returned date range to period list
+    range_list.append( str(d.format('YYYY-MM-DD')) )
+
+dict_group_skel = narrator.skeletor(
+    aggregate_level='period',
+    date_range=period_dates,
+    keys=liberal_hashtag_list
+)
+
+ht_df_sum = narrator.hashtag_summarizer(
+    search_option='tweets_and_hashtags',
+    keyword_list=liberal_keyword_list,
+    tweet_col='tweet',
+    id_col='id',
+    df_corpus=df_all,
+    hash_col='hashtags',
+    date_col='date',
+    sum_option='group_hash_temporal',
+    hash_list=liberal_hashtag_list,
+    skeleton=dict_group_skel,
+    time_agg_type='period',
+    period_dates=period_dates,
+    sort_check=False,
+    sort_date_check=True,
+    sort_type=False, #Ascending (F) or descending (T)?
+    sample_check=False,
+    sample_size=None,
+    output_type='python' #d3js or python
+)
+ht_df_sum
+```
+
+Output from above code:
+<img src="" />
+
+
+```python
+narrator.multiline_plotter(
+    style='dark_background',
+    palette='Paired',
+    graph_option='group_hash_per_period',
+    df=ht_df_sum,
+    x_col='period',
+    multi_x=3,
+    multi_y=3,
+    linewidth=1.9,
+    alpha=0.9,
+    chart_title='Liberal hashtag sums per period',
+    x_title='Periods',
+    y_title='# of Hashtags',
+    path='figures',
+    output='test_multi.png'
+)
+```
+
 ## Distribution update terminal commands
 
 <pre>
