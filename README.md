@@ -258,8 +258,9 @@ ht_df_sum
 ```
 
 Output from above code:
-<img src="" />
+<img src="https://raw.githubusercontent.com/lingeringcode/narrator/master/assets/images/output_summarizer_mult_grouping.png" />
 
+### Plot a "Small Multiples" Line Chart
 
 ```python
 narrator.multiline_plotter(
@@ -279,6 +280,13 @@ narrator.multiline_plotter(
     output='test_multi.png'
 )
 ```
+Output:
+<img src="https://raw.githubusercontent.com/lingeringcode/narrator/master/assets/images/matplot_small_multiples.png" />
+
+I've also created a D3.js version:
+
+<img src="https://raw.githubusercontent.com/lingeringcode/narrator/master/assets/images/d3_small_multiples.png" />
+
 
 ## Distribution update terminal commands
 
