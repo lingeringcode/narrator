@@ -24,7 +24,7 @@ It functions only with Python 3.x and is not backwards-compatible (although one 
 
 ## Objects
 
-```narrator``` initializes and uses the following objects:
+```narrator``` will initialize and use the following objects in future versions. It is currently not implemented yet. More to come here.
 
 * ```topperObject```: Object class with attributes that store desired top X samples from the corpus Object properties as follows:
     - ```.top_x_hashtags```:
