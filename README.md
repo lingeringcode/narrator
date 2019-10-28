@@ -265,9 +265,11 @@ Output from above code:
 ### Plot a "Small Multiples" Line Chart
 
 ```python
+import colorcet as cc
+
 narrator.multiline_plotter(
-    style='dark_background',
-    palette='Paired',
+    style='tableau-colorblind10',
+    palette=cc.cm.glasbey_dark,
     graph_option='group_hash_per_period',
     df=ht_df_sum,
     x_col='period',
