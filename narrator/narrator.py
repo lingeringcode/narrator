@@ -145,16 +145,16 @@ def skeletor(**kwargs):
     - Args:
         - sort_check= Boolean. If True, sort the corpus.
         - sort_date_check= Boolean. If True, sort corpus based on dates.
-        - df= DataFrame of corpus.
+        - counted_list= List. Tallies from corpus.
         - ss= Integer of sample size to output.
         - sample_check= Boolean. If True, use ss value. If False, use full corpus.
     - Returns DataFrame to summarizer function.
 '''
-def get_sample_size(sort_check, sort_date_check, sort_type, df, ss, sample_check):
+def get_sample_size(sort_check, sort_date_check, sort_type, counted_list, ss, sample_check):
     # Check if to be sorted or not
     if sort_check == True:
-        sorted_df = sorted(df, key=lambda x: x[1], reverse=True)
-        print('\n\nTop 10 sorted by counts:\n\n', sorted_df[:10])
+        sorted_df = sorted(counted_list, key=lambda x: x[1], reverse=True)
+
         # Check if delimited sample size
         if sample_check == True:
             top_dates = sorted_df[:ss]
@@ -163,11 +163,10 @@ def get_sample_size(sort_check, sort_date_check, sort_type, df, ss, sample_check
             return sorted_df
     elif sort_date_check == True:
         if sort_type == True:
-            sorted_df = sorted(df, key=lambda x: x[0], reverse=True) #descending
+            sorted_df = sorted(counted_list, key=lambda x: x[0], reverse=True) #descending
         elif sort_type == False:
-            sorted_df = sorted(df, key=lambda x: x[0], reverse=False) #ascending
+            sorted_df = sorted(counted_list, key=lambda x: x[0], reverse=False) #ascending
         
-        print('\n\nFirst 10 sorted by dates:\n\n', sorted_df[:10])
         # Check if delimited sample size
         if sample_check == True:
             top_dates = sorted_df[:ss]
@@ -175,13 +174,12 @@ def get_sample_size(sort_check, sort_date_check, sort_type, df, ss, sample_check
         elif sample_check == False:
             return sorted_df
     elif sort_check == False and sort_date_check == False:
-        print('\n\nFirst 10:\n\n', df[:10])
         # Check if delimited sample size
         if sample_check == True:
-            first_dates = df[:ss]
+            first_dates = counted_list[:ss]
             return first_dates
         elif sample_check == False:
-            return df
+            return counted_list
 
         
 '''
@@ -234,32 +232,32 @@ def grouper(**kwargs):
     return kwargs['skeleton']
 
 '''
-    grouped_dict_to_df:
+    grouped_dict_to_df: Takes grouped Dict and outputs a DataFrame.
     - Args:
-        - sum_option= String. Options for grouping into a Dataframe.
+        - main_sum_option= String. Options for grouping into a Dataframe.
             - group_hash_temporal= Multiple groups of hashtags
-        - output_type= Sring. oPtions for DF outputs
-            - d3js= Good for small multiples in D3.js 
-            - python= Good for small multiples in matplot
+        - grouped_output_type= Sring. oPtions for DF outputs
+            - spread= Good for small multiples in D3.js 
+            - consolidated= Good for small multiples in matplot
         - time_agg_type= String. Options for type of temporal grouping.
             - period= Grouped by periods
         - group_dict= Hydrated Dict to convert to a DataFrame for visualization or output
     - Returns DataFrame for use with a plotter function or output as CSV
 '''
 def grouped_dict_to_df(**kwargs):
-    if kwargs['sum_option'] == 'group_hash_temporal' and kwargs['time_agg_type'] == 'period':
+    if kwargs['main_sum_option'] == 'grouped_terms_perday' and kwargs['time_agg_type'] == 'period':
         
-        if kwargs['output_type'] == 'd3js':
+        if kwargs['grouped_output_type'] == 'consolidated':
             ph = []
             for p in kwargs['group_dict']:
                 for ht in kwargs['group_dict'][p]:
                     ph.append([int(p), ht, kwargs['group_dict'][p][ht]])
 
-            columns = ['period','hashtag','count']
+            columns = ['period','term','count']
             df_return = pd.DataFrame(ph, columns=columns)
             
             return df_return
-        elif kwargs['output_type'] == 'python':
+        elif kwargs['grouped_output_type'] == 'spread':
             period_col_values = []
             data = {'columns': {}}
             for p in kwargs['group_dict']:
@@ -296,207 +294,230 @@ def find_term(search, text):
         return False
 
 '''
-    accumulator: Helper function for summarizer functions. Accumulates by hashtag lists and keyword lists.
+    accumulator: Helper function for summarizer function. Accumulates by simple lists and keyed lists.
     - Args:
         - checker= String. Options for accumulation:
-            - hashtags: Hashtag search.
-            - keywords: Keyword search.
+            - simple: Takes values from simple_list and conducts a search on primary_col.
+            - keyed: Takes values from keyed_list and conducts a search on secondary_col.
         - df_list= List. DataFrame passed as a list for traversing
         - check_list= List. List of terms to accrue and append
-            - If hashtags, converted to List of hashtags
-            - If keywords, List of dicts, where each key is its accompanying hashtag.
-    - Returns a hydrated list of Tuples with hashtags and accompanying date.
+            - If simple, converted to List of each listed term.
+            - If keyed, List of dicts, where each key is its accompanying primary_col term.
+    - Returns a hydrated list of Tuples with each primary term and its accompanying date.
 '''
 def accumulator(checker, df_list, check_list):
-    if checker == 'hashtags':
-        print('Started accumulating tweets with hashtags.')
-        hashes_and_dates = []
+    if checker == 'simple':
+        print('Started accumulating content with simple listed terms.')
+        terms_and_dates = []
         for h in df_list:
             ht = ast.literal_eval(h[1])
             if type(ht) is not float:
                 ht = [n.strip() for n in ht]
                 if len(ht) > 1:
                     for i in ht:
-                        # Check if in hash_list
+                        # Check if in check_list
                         if i in check_list:
-                            # Append hashtag and date
-                            hashes_and_dates.append( (i, h[0], int(float(h[2]))) )
+                            # Append primary term and date
+                            terms_and_dates.append( (i, h[0], int(float(h[2]))) )
                 elif len(ht) == 1:
                     if ht[0] in check_list:
-                        # Append hashtag and date
-                        hashes_and_dates.append( (ht[0], h[0], int(float(h[2]))) )
-        print('Accumulating tweets with hashtags complete.')
-        return hashes_and_dates
-    elif checker == 'keywords':
-        print('Started accumulating tweets with keywords.')
+                        # Append primary term and date
+                        terms_and_dates.append( (ht[0], h[0], int(float(h[2]))) )
+        print('Accumulating content with simple listed terms complete.')
+        return terms_and_dates
+    elif checker == 'keyed':
+        print('Started accumulating content with keyed terms.')
         keywords_and_dates = []
         # Traverse list of tweets, check for keywords
         for t in df_list:
             for ht in check_list:
                 for kw in ht:
                     for k in ht[kw]:
-                        # k = keyword in each hashtag's list
+                        # k = keyword in each check_list
                         # Search for it in a tweet
                         check_keyword = k in str(t[2])
-                        # Filter out if hashtag_list hashtag is used
+                        # Filter out if simple_list term is used
                         if check_keyword == True:
                             check_ht = find_term( kw, str(t[2]) )
-                            # If not found as hashtag_list, append it
+                            # If not found as simple_list term, append it
                             if check_ht == False:
                                 keywords_and_dates.append( (kw, t[0], int(float(t[3])), k) )
-        print('Accumulating tweets with keywords complete.')
+        print('Accumulating content with keyed terms complete.')
         return keywords_and_dates
 
 '''
-    hashtag_summarizer: Counts hashtag use and optionally as temporally
-    distributed.
+    summarizer: Counts a column variable of interest and returns a sample data set
+        based on set parameters. There are 5 search options from which to choose.
+        See the the 'main_sum_option' list below.
     - Args:
-        - search_option: String. Either 'hashtags' or' tweets_and_hashtags'. The second 
-            option searches for hashtags in the hashtag column and keywords in 
-            the tweet column. For example, you search for someone's name in the 
-            corpus that isn't always represented as a hashtag.
-        - keyword_list= List. A list of keywords of which you search within the tweet column.
-        - df_corpus= DataFrame of tweet corpus
-        - hash_col= String value of the DataFrame column name for hashtags.
-        - tweet_col= String value of the DataFrame column name for tweets.
-        - sum_option= String. Current options for sampling include the following:
-            - 'sum_all_hash': Sum of all hashtags across entire corpus
-            - 'sum_group_hash': Sum of a group of hashtags (List) across entire corpus
-            - 'sum_single_hash': Sum of a single hashtag (String) across entire corpus
-            - 'single_hash_per_day': Sum of single hashtag per Day in provided range
-            - 'group_hash_per_day': Sum of group of hashtags per Day in provided range
-        - single_hash= String of single hashtag to isolate.
-        - hash_list= List of hashtags to isolate.
-        - time_agg_type= If sum by group temporally, define its temporal aggregation:
-            - 'day': Aggregate time per Day
-            - 'period': Aggregate time per period
-        - date_col= String value of the DataFrame column name for the dates in xx-xx-xxxx format.
-        - sort_check= Boolean. If True, sort sums per day.
-        - sort_date_check= Boolean. If True, sort by dates.
-        - sort_type= Boolean. If True, descending order. If False, ascending order.
-        - output_type= String. OPtions for particular Dataframe output
-            - d3js= DF in a format conduive for small multiples chart in D3.js
-            - python= DF in a format conduive for small multiples chart in python's matplot
+        - Required Options:
+            - main_sum_option= String. Current options for sampling include the following:
+                - 'sum_all_col': Sum of all the passed variable across entire corpus
+                - 'sum_group_col': Sum of a group of the passed variables (List) across entire corpus
+                - 'sum_single_col': Sum of a single isolated variables value (String) across entire corpus
+                - 'single_term_per_day': Sum of single variable per Day in provided range
+                - 'grouped_terms_perday': Sum of group of a type of variable per Day in provided range
+            - column_type= String. Provides the type of summary to conduct.
+                - 'hashtags': Searches for hashtags
+                - 'urls': Searches for URLs
+                - 'other': Searches for another type of content
+            - df_corpus= DataFrame of tweet corpus
+            - primary_col= String. Name of the primary targeted DataFrame column of interest, 
+                e.g., hashtags, urls, etc.
+            - sort_check= Boolean. If True, sort sums per day.
+            - sort_date_check= Boolean. If True, sort by dates.
+            - sort_type= Boolean. If True, descending order. If False, ascending order.
+        - Conditional options:
+            - group_search_option= String. Use to choose what search options to use for 'group_col_per_day'. 
+                - 'single_col': Searches for search terms in the single pertinent column
+                - 'keywords_and_col': Searches for a column variable and accompanying
+                    keywords in another content column, such as 'tweets'. For example,  you search for someone's 
+                    name in the corpus that isn't always represented as a hashtag.
+            - simple_list= List of terms to isolate.
+            - keyed_list= List of Dicts. A keyed list of keywords of which you search within the secondary_col.
+            - secondary_col= String. Name of the secondary targeted DataFrame column of interest, 
+                if needed, e.g., tweets, usernames, etc.
+            - single_term= String of single term to isolate.
+            - time_agg_type= If sum by group temporally, define its temporal aggregation:
+                - 'day': Aggregate time per Day
+                - 'period': Aggregate time per period
+            - date_col= String value of the DataFrame column name for the dates in xx-xx-xxxx format.
+            - id_col= String value of the DataFrame column name for the unique ID.
+            - grouped_output_type= String. Options for particular Dataframe output
+                - consolidated= Each listed value in group is a column with its period values
+                - spread= One column for each listed group value
     - Return: Depending on option, a sample as a List of Tuples or Dict of grouped samples
 '''
-def hashtag_summarizer(**kwargs):
-    # 1. Clean data
-    print('Cleaning the hashtag data.')
-    clean_hash_data = kwargs['df_corpus'][(kwargs['df_corpus'][kwargs['hash_col']].isnull() == False)]
-    clean_hash_data_filtered = clean_hash_data[clean_hash_data[kwargs['hash_col']].str.contains('#')]
-    clean_hash_data_filtered = clean_hash_data.reset_index()
+def summarizer(**kwargs):
+    cleaned_df_data = pd.DataFrame([])
+    clean_data_filtered = pd.DataFrame([])
     
-    print('Hashtag data cleaned, now writing samples.')
-    # 2. Count and sort
+    # 1. Remove null values
+    clean_data = kwargs['df_corpus'][(kwargs['df_corpus'][kwargs['primary_col']].isnull() == False)]
     
-    cleaned_hashtags = []
+    # 2. Is it URLs or Hashtags
+    print('Cleaning the data.')
+    if kwargs['column_type'] == 'hashtags':
+        clean_data_filtered = clean_data[clean_data[kwargs['primary_col']].str.contains('#')]
+    
+    elif kwargs['column_type'] == 'urls':
+        clean_data_filtered = clean_data[clean_data[kwargs['primary_col']].str.contains('http')]
+    
+    elif kwargs['column_type'] == 'other':
+        clean_data_filtered = clean_data.copy()
+        
+    cleaned_df_data = clean_data_filtered.reset_index()
+    print('Data cleaned, now writing samples.')
+    
+    # 2. Count and sort; append to this list
+    cleaned_listed_data = []
+    
     # Option 2.1 - Count per Hashtag, across entire corpus
-    if kwargs['sum_option'] == 'sum_all_hash':
+    if kwargs['main_sum_option'] == 'sum_all_col':
         print('Hydrating by desired', kwargs['sum_option'])
-        for h in list(clean_hash_data_filtered[kwargs['hash_col']]):
+        for h in list(cleaned_df_data[kwargs['primary_col']]):
             h = ast.literal_eval(h)
             if type(h) is not float:
                 h = [n.strip() for n in h]
                 if len(h) > 1 and type(h) is not float:
                     for i in h:
-                        cleaned_hashtags.append(i)
+                        cleaned_listed_data.append(i)
                 elif len(h) == 1 and type(h) is not float:
-                    cleaned_hashtags.append(h[0]) 
+                    cleaned_listed_data.append(h[0]) 
         
         # Count'em up
-        hashtag_date_totals = list(Counter(cleaned_hashtags).items())
+        col_totals = list(Counter(cleaned_listed_data).items())
         
         print('Writing up the sample')
         top_x = get_sample_size(
             sort_check=kwargs['sort_check'],
             sort_date_check=kwargs['sort_date_check'],
             sort_type=kwargs['sort_type'],
-            df=hashtag_date_totals,
+            counted_list=col_totals,
             ss=kwargs['sample_size'],
             sample_check=kwargs['sample_check']
         )
         return top_x
     # Option 2.2 - Count group of hashtags across entire corpus
-    elif kwargs['sum_option'] == 'sum_group_hash':
+    elif kwargs['main_sum_option'] == 'sum_group_col':
         print('Hydrating by desired', kwargs['sum_option'])
-        for h in list(clean_hash_data_filtered[kwargs['hash_col']]):
+        for h in list(cleaned_df_data[kwargs['primary_col']]):
             h = ast.literal_eval(h)
             if type(h) is not float:
                 h = [n.strip() for n in h]
                 if len(h) > 1 and type(h) is not float:
                     for i in h:
-                        if i in kwargs['hash_list']:
-                            cleaned_hashtags.append(i)
-                elif len(h) == 1 and type(h) is not float and h[0] in kwargs['hash_list']:
-                    cleaned_hashtags.append(h[0]) 
+                        if i in kwargs['simple_list']:
+                            cleaned_listed_data.append(i)
+                elif len(h) == 1 and type(h) is not float and h[0] in kwargs['simple_list']:
+                    cleaned_listed_data.append(h[0]) 
         
         # Count'em up
-        hashtag_date_totals = list(Counter(cleaned_hashtags).items())
+        col_totals = list(Counter(cleaned_listed_data).items())
         
         print('Writing up the sample')
         top_x = get_sample_size(
             sort_check=kwargs['sort_check'],
             sort_date_check=kwargs['sort_date_check'],
             sort_type=kwargs['sort_type'],
-            df=hashtag_date_totals,
+            counted_list=col_totals,
             ss=kwargs['sample_size'],
             sample_check=kwargs['sample_check']
         )
         return top_x
     # Option 2.3 - Count single hashtag across entire corpus
-    elif kwargs['sum_option'] == 'sum_single_hash':
+    elif kwargs['main_sum_option'] == 'sum_single_col':
         print('Hydrating by desired', kwargs['sum_option'])
-        for h in list(clean_hash_data_filtered[kwargs['hash_col']]):
+        for h in list(cleaned_df_data[kwargs['primary_col']]):
             h = ast.literal_eval(h)
             if type(h) is not float:
                 h = [n.strip() for n in h]
                 if len(h) > 1 and type(h) is not float:
                     for i in h:
-                        if i == kwargs['single_hash']:
-                            cleaned_hashtags.append(i)
-                elif len(h) == 1 and type(h) is not float and h[0] == kwargs['single_hash']:
-                    cleaned_hashtags.append(h[0]) 
+                        if i == kwargs['single_term']:
+                            cleaned_listed_data.append(i)
+                elif len(h) == 1 and type(h) is not float and h[0] == kwargs['single_term']:
+                    cleaned_listed_data.append(h[0]) 
         
-        hashtag_date_totals = list(Counter(cleaned_hashtags).items())
+        col_totals = list(Counter(cleaned_listed_data).items())
         
         print('Writing up the sample')
         top_x = get_sample_size(
             sort_check=kwargs['sort_check'],
             sort_date_check=kwargs['sort_date_check'],
             sort_type=kwargs['sort_type'],
-            df=hashtag_date_totals,
+            counted_list=col_totals,
             ss=kwargs['sample_size'],
             sample_check=kwargs['sample_check']
         )
         return top_x
-    # Option 2.4 - Count a single hashtag temporally across entire corpus
-    elif kwargs['sum_option'] == 'single_hash_temporal':
+    # Option 2.4 - Count a single isolated value temporally across entire corpus
+    elif kwargs['main_sum_option'] == 'single_term_perday':
         # Isolate columns of interest: Dates (xx-xx-xxxx) and 
-        df_hash_data = clean_hash_data_filtered[[kwargs['date_col'], kwargs['hash_col'], [kwargs['id']]]]
-        print('Hydrating by desired', kwargs['sum_option'])
-        hashtags_and_dates = []
-        for h in df_hash_data.values.tolist():
+        df_primary_data = cleaned_df_data[[kwargs['date_col'], kwargs['primary_col'], [kwargs['id']]]]
+        col_and_dates = []
+        for h in df_primary_data.values.tolist():
             ht = ast.literal_eval(h[1])
             if type(ht) is not float:
                 ht = [n.strip() for n in ht]
                 if len(ht) > 1:
                     for i in ht:
-                        # Check if in hash_list
-                        if i == kwargs['single_hash']:
+                        # Check if equal to search parameter
+                        if i == kwargs['single_term']:
                             # Append hashtag and date
-                            hashtags_and_dates.append( (i, h[0]) )
-                elif len(ht) == 1 and ht[0] == kwargs['single_hash']:
+                            col_and_dates.append( (i, h[0]) )
+                elif len(ht) == 1 and ht[0] == kwargs['single_term']:
                     # Append hashtag and date
-                    hashtags_and_dates.append( (ht[0], h[0]) )
+                    col_and_dates.append( (ht[0], h[0]) )
         
-        hashtag_date_totals = list(Counter(hashtags_and_dates).items())
+        col_totals = list(Counter(col_and_dates).items())
 
         print('Writing up the sample')
         top_date_x = get_sample_size(
             sort_check=kwargs['sort_check'],
             sort_date_check=kwargs['sort_date_check'],
             sort_type=kwargs['sort_type'],
-            df=hashtag_date_totals,
+            counted_list=col_totals,
             ss=kwargs['sample_size'],
             sample_check=kwargs['sample_check']
         )
@@ -508,51 +529,56 @@ def hashtag_summarizer(**kwargs):
             skeleton=kwargs['skeleton']
         )
         return temporal_top_date_x
-    # Option 2.5 - Count grouping of hashtags temporally across entire corpus
-    elif kwargs['sum_option'] == 'group_hash_temporal':
-        print('Hydrating by desired', kwargs['sum_option'])
-        merged_hashtags_and_dates = []
-        hashtags_and_dates = []
-        # Write Lists with desired keyword and/or hashtag info
-        if kwargs['search_option'] == 'hashtags':
-            # If hashtags a concern ONLY
-            df_hash_data = clean_hash_data_filtered[[kwargs['date_col'], kwargs['hash_col']]]
-            for h in df_hash_data.values.tolist():
+    
+    # Option 2.5 - Count grouping of variable values per Day across entire corpus
+    elif kwargs['main_sum_option'] == 'grouped_terms_perday':
+        print('Hydrating by desired', kwargs['main_sum_option'])
+        merged_terms_and_dates = []
+        col_and_dates = []
+        # Write Lists with desired search parameters info
+        if kwargs['group_search_option'] == 'single_col':
+            # If column has embedded listed values ONLY
+            df_primary_data = cleaned_df_data[[kwargs['date_col'], kwargs['primary_col']]]
+            for h in df_primary_data.values.tolist():
+                # Code as a list
                 ht = ast.literal_eval(h[1])
                 if type(ht) is not float:
                     ht = [n.strip() for n in ht]
                     if len(ht) > 1:
                         for i in ht:
                             # Check if in hash_list
-                            if i in kwargs['hash_list']:
+                            if i in kwargs['simple_list']:
                                 # Append hashtag and date
-                                hashtags_and_dates.append( (i, h[0]) )
+                                col_and_dates.append( (i, h[0]) )
                     elif len(ht) == 1:
-                        if ht[0] in kwargs['hash_list']:
+                        if ht[0] in kwargs['simple_list']:
                             # Append hashtag and date
-                            hashtags_and_dates.append( (ht[0], h[0]) )
-        elif kwargs['search_option'] == 'tweets_and_hashtags':
-            # 1. Search and list hashtags
-            df_hash_data = clean_hash_data_filtered[[kwargs['date_col'], kwargs['hash_col'], kwargs['id_col']]]
-            hashtags_dates_tweetid = accumulator('hashtags', df_hash_data.values.tolist(), kwargs['hash_list'])
+                            col_and_dates.append( (ht[0], h[0]) )
+                            
+            terms_date_totals = list(Counter(col_and_dates).items())
             
-            # 2. Search and list keywords; Also filters out tweets already accounted by the hashtag_list
-            df_kw_data = kwargs['df_corpus'][ [kwargs['date_col'], kwargs['hash_col'], kwargs['tweet_col'], kwargs['id_col'] ]]
-            kwhts_dates_tweetid = accumulator('keywords', df_kw_data.values.tolist(), kwargs['keyword_list'])
+        elif kwargs['group_search_option'] == 'keywords_and_col':
+            # 1. Search and list primary column xref'd with the simple_list
+            df_data = cleaned_df_data[[kwargs['date_col'], kwargs['primary_col'], kwargs['id_col']]]
+            primary_dates_id = accumulator('simple', df_data.values.tolist(), kwargs['simple_list'])
+            
+            # 2. Search secondary_col with keyed_list; Also filters out content already accounted by the simple_list
+            df_kw_data = kwargs['df_corpus'][ [kwargs['date_col'], kwargs['primary_col'], kwargs['secondary_col'], kwargs['id_col'] ]]
+            secondary_dates_id = accumulator('keyed', df_kw_data.values.tolist(), kwargs['keyed_list'])
             
             # 3. Merge Lists and filter out unecessary items
-            merged_list = hashtags_dates_tweetid + kwhts_dates_tweetid
+            merged_list = primary_dates_id + secondary_dates_id
             for m in merged_list:
-                merged_hashtags_and_dates.append((m[0], m[1]))
+                merged_terms_and_dates.append((m[0], m[1]))
         
-        hashtag_date_totals = list(Counter(merged_hashtags_and_dates).items())
+            terms_date_totals = list(Counter(merged_terms_and_dates).items())
         
         print('Writing up the sample')
         top_date_x = get_sample_size(
+            counted_list=terms_date_totals,
             sort_check=kwargs['sort_check'],
             sort_date_check=kwargs['sort_date_check'],
             sort_type=kwargs['sort_type'],
-            df=hashtag_date_totals,
             ss=kwargs['sample_size'],
             sample_check=kwargs['sample_check']
         )
@@ -573,14 +599,14 @@ def hashtag_summarizer(**kwargs):
                 group_type=kwargs['time_agg_type'],
                 skeleton=kwargs['skeleton']
             )
-            
+                    
         print('\n\nConverting data to a DataFrame.')
         
         df_grouped_top_date_x = grouped_dict_to_df(
-            sum_option=kwargs['sum_option'],
+            main_sum_option=kwargs['main_sum_option'],
             time_agg_type=kwargs['time_agg_type'],
             group_dict=grouped_top_date_x,
-            output_type=kwargs['output_type']
+            grouped_output_type=kwargs['grouped_output_type']
         )
 
         print('\n\nSample hydration complete!')
@@ -699,16 +725,16 @@ def temporal_bar_plotter(**kwargs):
     plt.show()
 
 '''
-    multiline_plotter: Plots and saves a small-multiples line chart from a returned DataFrame from a summarizer function that used the 'python' option
+    multiline_plotter: Plots and saves a small-multiples line chart from a returned DataFrame from the summarizer function that used the 'spread' output option
     - Modified src: https://python-graph-gallery.com/125-small-multiples-for-line-chart/
     - Args:
         - style= String. See matplot docs for options available, e.g. 'seaborn-darkgrid' 
         - pallette= String. See matplot docs for options available, e.g. 'Set1'
-        - graph_option= String. Current options for sampling include the following:
-            - 'single_hash_per_day': Sum of single hashtag per Day in provided range
-            - 'group_hash_per_day': Sum of group of hashtags per Day in provided range
-            - 'single_hash_per_period': Sum of single hashtag per Period
-            - 'group_hash_per_period': Sum of group of hashtags per Period
+        - graph_option= String. Options for sampling will include all of the the following, but for now only 'group_var_per_period':
+            - 'single_var_per_day': Sum of single variable per Day in provided range
+            - 'group_var_per_day': Sum of group of variable per Day in provided range
+            - 'single_var_per_period': Sum of single variable per Period
+            - 'group_var_per_period': Sum of group of variable per Period
         - df= DataFrame of data set to be visualized
         - x_col= DataFrame column for x-axis
         - multi_x= Integer for number of graphs along x/rows
@@ -724,7 +750,7 @@ def temporal_bar_plotter(**kwargs):
     - Returns nothing, but plots a 'small multiples' series of charts
 '''
 def multiline_plotter(**kwargs):
-    if kwargs['graph_option'] == 'group_hash_per_period':
+    if kwargs['graph_option'] == 'group_var_per_period':
         # Initialize the use of a stylesheet
         # See docs for options, e.g., 'dark_background'
         plt.style.use(kwargs['style'])
