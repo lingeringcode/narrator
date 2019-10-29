@@ -284,7 +284,7 @@ import colorcet as cc
 narrator.multiline_plotter(
     style='tableau-colorblind10',
     palette=cc.cm.glasbey_dark,
-    graph_option='group_hash_per_period',
+    graph_option='group_var_per_period',
     df=ht_df_sum,
     x_col='period',
     multi_x=3,

@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 setup(
   name = 'narrator',
   packages = ['narrator'],
-  version = '0.0.0.3',
+  version = '0.0.0.4',
   description = 'A set of functions that process and create descriptive summary visualizations to help develop a broader narrative through-line of tweet data.',
   author = 'Chris A. Lindgren',
   author_email = 'chris.a.lindgren@gmail.com',

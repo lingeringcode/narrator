@@ -533,8 +533,9 @@ def summarizer(**kwargs):
     # Option 2.5 - Count grouping of variable values per Day across entire corpus
     elif kwargs['main_sum_option'] == 'grouped_terms_perday':
         print('Hydrating by desired', kwargs['main_sum_option'])
-        merged_terms_and_dates = []
         col_and_dates = []
+        terms_date_totals = []
+        merged_terms_and_dates = []
         # Write Lists with desired search parameters info
         if kwargs['group_search_option'] == 'single_col':
             # If column has embedded listed values ONLY
