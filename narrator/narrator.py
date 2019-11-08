@@ -547,13 +547,13 @@ def summarizer(**kwargs):
                     ht = [n.strip() for n in ht]
                     if len(ht) > 1:
                         for i in ht:
-                            # Check if in hash_list
+                            # Check if in simple_list
                             if i in kwargs['simple_list']:
-                                # Append hashtag and date
+                                # Append term and date
                                 col_and_dates.append( (i, h[0]) )
                     elif len(ht) == 1:
                         if ht[0] in kwargs['simple_list']:
-                            # Append hashtag and date
+                            # Append term and date
                             col_and_dates.append( (ht[0], h[0]) )
                             
             terms_date_totals = list(Counter(col_and_dates).items())
